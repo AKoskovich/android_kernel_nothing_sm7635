@@ -301,6 +301,15 @@ config ARCH_PINEAPPLE
 	  chipset. If you do not wish to build a kernel that runs on this
 	  chipset or if you are unsure, say 'N' here.
 
+config ARCH_VOLCANO
+	bool "Enable support for Qualcomm Technologies, Inc. VOLCANO"
+	depends on ARCH_QCOM
+	help
+	  This enables support for Qualcomm Technologies, Inc.
+	  VOLCANO chipset. If you do not wish to build a kernel
+	  that runs on this chipset or if you are unsure,
+	  say 'N' here.
+
 config ARCH_X1E80100
         bool "Enable Support for Qualcomm Technologies, Inc. X1E80100"
         depends on ARCH_QCOM
