@@ -126,6 +126,16 @@ static const char * const drv_names_pineapple[][MAX_DRV_NAMES] = {
 			"TME", "MODEM", "WLAN RF", "WLAN BB", "CAM", "PCIE", ""},
 };
 
+static const char * const drv_names_volcano[][MAX_DRV_NAMES] = {
+	[CXPC_DRV_NAME] = {"TZ", "L3", "HLOS", "HYP", "RESERVED", "AUDIO", "AOP", "DEBUG",
+			"GPU", "DISPLAY", "COMPUTE_DSP", "TME_HW", "TME_SW", "MDM SW",
+			"MDM HW", "RESERVED", "WLAN RF", "WLAN BB", "RESERVED",
+			"RESERVED", "RESERVED", "RESERVED", "RESERVED", "WPSS",
+			"DDR AUX", "ARC CPRF", ""},
+	[AOSS_DRV_NAME] = {"APPS", "RESERVED", "AUDIO", "AOP", "DEBUG", "GPU", "DISPLAY", "COMPUTE",
+			"TME", "MODEM", "WLAN RF", "WLAN BB", "RESERVED", "RESERVED", "WPSS", ""},
+};
+
 static const char * const drv_names_sun[][MAX_DRV_NAMES] = {
 	[CXPC_DRV_NAME] = {"TZ", "L3", "HLOS", "HYP", "SECPROC", "AUDIO", "AUDIO CESTA", "AOP",
 			"DEBUG", "GPU", "DISPLAY", "COMPUTE_DSP", "TME_HW", "TME_SW", "MDM SW",
@@ -567,6 +577,8 @@ static const struct of_device_id drv_match_table[] = {
 	  .data = drv_names_kalama },
 	{ .compatible = "qcom,sys-pm-pineapple",
 	  .data = drv_names_pineapple },
+	{ .compatible = "qcom,sys-pm-volcano",
+	  .data = drv_names_volcano },
 	{ .compatible = "qcom,sys-pm-sun",
 	  .data = drv_names_sun },
 	{ .compatible = "qcom,sys-pm-tuna",
