@@ -158,6 +158,7 @@ obj-$(CONFIG_SM_VIDEOCC_VOLCANO) += videocc-volcano.o
 obj-$(CONFIG_SM_CAMBISTMCLKCC_TUNA) += cambistmclkcc-tuna.o
 obj-$(CONFIG_SM_CAMCC_PARROT) += camcc-parrot.o
 obj-$(CONFIG_SM_CAMCC_PINEAPPLE) += camcc-pineapple.o
+obj-$(CONFIG_SM_CAMCC_VOLCANO) += camcc-volcano.o
 obj-$(CONFIG_SM_CAMCC_TUNA) += camcc-tuna.o
 obj-$(CONFIG_SM_DISPCC_PINEAPPLE) += dispcc-pineapple.o
 obj-$(CONFIG_SM_DEBUGCC_PINEAPPLE) += debugcc-pineapple.o
