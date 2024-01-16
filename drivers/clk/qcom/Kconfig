@@ -1139,6 +1139,15 @@ config SM_VIDEOCC_VOLCANO
 	  Say Y if you want to support video devices and functionality such as
 	  video encode/decode.
 
+config SM_CAMCC_VOLCANO
+	tristate "Volcano Camera Clock Controller"
+	select SM_GCC_VOLCANO
+	help
+	  Support for the camera clock controller on Qualcomm Technologies, Inc
+	  Volcano devices.
+	  Say Y if you want to support camera devices and functionality such as
+	  capturing pictures.
+
 config SM_CAMCC_SUN
         tristate "SUN Camera Clock Controller"
         depends on SM_GCC_SUN
