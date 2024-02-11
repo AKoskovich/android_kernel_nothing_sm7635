@@ -18,6 +18,7 @@ obj-$(CONFIG_PHY_QCOM_UFS_V4)		+= phy-qcom-ufs-qmp-v4-pineapple.o
 obj-$(CONFIG_PHY_QCOM_UFS_V4_WAIPIO)	+= phy-qcom-ufs-qmp-v4-waipio.o
 obj-$(CONFIG_PHY_QCOM_UFS_V4_SUN)	+= phy-qcom-ufs-qmp-v4-sun.o
 obj-$(CONFIG_PHY_QCOM_UFS_V4_PINEAPPLE)	+= phy-qcom-ufs-qmp-v4-pineapple.o
+obj-$(CONFIG_PHY_QCOM_UFS_V4_CROW)	+= phy-qcom-ufs-qmp-v4-crow.o
 obj-$(CONFIG_PHY_QCOM_UFS_QRBTC_SDM845) += phy-qcom-ufs-qrbtc-sdm845.o
 obj-$(CONFIG_PHY_QCOM_QMP_USB)		+= phy-qcom-qmp-usb.o
 obj-$(CONFIG_PHY_QCOM_QMP_USB_LEGACY)	+= phy-qcom-qmp-usb-legacy.o
