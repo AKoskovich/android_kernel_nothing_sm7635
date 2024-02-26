@@ -2537,6 +2537,18 @@ static const struct adsp_data volcano_mpss_resource = {
 	.both_dumps = true,
 };
 
+static const struct adsp_data volcano_wpss_resource = {
+	.crash_reason_smem = 626,
+	.firmware_name = "wpss.mdt",
+	.pas_id = 6,
+	.minidump_id = 4,
+	.load_state = "wpss",
+	.uses_elf64 = true,
+	.ssr_name = "wpss",
+	.sysmon_name = "wpss",
+	.ssctl_id = 0x19,
+};
+
 static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,msm8226-adsp-pil", .data = &adsp_resource_init},
 	{ .compatible = "qcom,msm8953-adsp-pil", .data = &msm8996_adsp_resource},
@@ -2599,6 +2611,7 @@ static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,pineapple-adsp-pas", .data = &pineapple_adsp_resource},
 	{ .compatible = "qcom,pineapple-cdsp-pas", .data = &pineapple_cdsp_resource},
 	{ .compatible = "qcom,pineapple-modem-pas", .data = &pineapple_mpss_resource},
+	{ .compatible = "qcom,volcano-wpss-pas", .data = &volcano_wpss_resource},
 	{ .compatible = "qcom,volcano-adsp-pas", .data = &volcano_adsp_resource},
 	{ .compatible = "qcom,volcano-modem-pas", .data = &volcano_mpss_resource},
 	{ .compatible = "qcom,volcano-cdsp-pas", .data = &volcano_cdsp_resource},
