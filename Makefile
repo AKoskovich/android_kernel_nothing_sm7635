@@ -1143,6 +1143,17 @@ export MODULES_NSDEPS := $(extmod_prefix)modules.nsdeps
 
 PHONY += headers
 
+ext-mod-dir := ../sm8650-modules
+ext-mod-dirs := \
+ 	$(ext-mod-dir)/qcom/opensource/audio-kernel \
+ 	$(ext-mod-dir)/qcom/opensource/dataipa/drivers/platform/msm \
+ 	$(ext-mod-dir)/qcom/opensource/display-drivers \
+ 	$(ext-mod-dir)/qcom/opensource/mm-sys-kernel/ubwcp \
+ 	$(ext-mod-dir)/qcom/opensource/securemsm-kernel/smmu-proxy \
+ 	$(ext-mod-dir)/qcom/opensource/video-kernel \
+ 	$(ext-mod-dir)/nxp/opensource/driver
+ext-mod-dirs := $(subst $(srctree)/,,$(ext-mod-dirs))
+
 #Default location for installed headers
 ifeq ($(KBUILD_EXTMOD),)
 PHONY += archheaders archscripts
@@ -1171,6 +1182,9 @@ ifeq ($(KBUILD_EXTMOD),)
 endif
 	$(Q)$(MAKE) $(hdr-inst)=$(hdr-prefix)include/uapi
 	$(Q)$(MAKE) $(hdr-inst)=$(hdr-prefix)arch/$(SRCARCH)/include/uapi
+	$(Q)for d in $(ext-mod-dirs); do \
+		$(MAKE) $(hdr-inst)=$$d/include/uapi; \
+	done
 
 # ---------------------------------------------------------------------------
 # Devicetree files
