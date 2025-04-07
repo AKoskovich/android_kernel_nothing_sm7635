@@ -12,6 +12,7 @@
 
 #define DEBUG
 #define AAC_RICHTAP_SUPPORT
+#define ICS_INPUT_FRAMEWORK
 
 #define ics_err(format, ...) \
 	pr_err("[ics_haptic] " format, ##__VA_ARGS__)
@@ -56,10 +57,9 @@ typedef struct led_classdev vib_dev_t;
 
 enum ics_haptic_play_mode
 {
-	PLAY_MODE_RAM		   = 0x01,
-	PLAY_MODE_STREAM		= 0x02,
-	PLAY_MODE_TRACK		 = 0x03,
-	PLAY_MODE_RAM_LOOP      = 0x01,
+	PLAY_MODE_STANDBY	= 0x00,
+	PLAY_MODE_RAM		= 0x01,
+	PLAY_MODE_STREAM	= 0x02,
 };
 
 enum ics_haptic_boost_mode
@@ -181,6 +181,9 @@ struct ics_haptic_data
 	char richtap_misc_name[64];
 	void* richtap_data;
 	struct work_struct richtap_stream_work;
+#endif
+#ifdef ICS_INPUT_FRAMEWORK
+	bool preset_custom;
 #endif
 };
 
