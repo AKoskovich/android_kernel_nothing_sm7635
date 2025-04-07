@@ -369,7 +369,6 @@ static ssize_t activate_store(struct device *dev,
 	}
 
 	mutex_lock(&haptic_data->lock);
-	hrtimer_cancel(&haptic_data->timer);
 	haptic_data->duration = 5000;
 	ics_info("duration exit, val = %d", haptic_data->duration);
 	ret = haptic_data->func->set_gain(haptic_data, 18);
@@ -1081,6 +1080,7 @@ static void vibrator_work_routine(struct work_struct *work)
 	uint8_t buf[6];
 
 	mutex_lock(&haptic_data->lock);
+	hrtimer_cancel(&haptic_data->timer);
 	haptic_data->func->play_stop(haptic_data);
 	if (haptic_data->activate_state)
 	{
