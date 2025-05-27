@@ -14,13 +14,13 @@
 #define AAC_RICHTAP_SUPPORT
 
 #define ics_err(format, ...) \
-	pr_err("[ics_haptic]" format, ##__VA_ARGS__)
+	pr_err("[ics_haptic] " format, ##__VA_ARGS__)
 
 #define ics_info(format, ...) \
-	pr_err("[ics_haptic]" format, ##__VA_ARGS__)
+	pr_err("[ics_haptic] " format, ##__VA_ARGS__)
 
 #define ics_dbg(format, ...) \
-	pr_err("[ics_haptic]" format, ##__VA_ARGS__)
+	pr_err("[ics_haptic] " format, ##__VA_ARGS__)
 
 #define check_error_return(ret)	\
 	if (ret < 0) {	\
