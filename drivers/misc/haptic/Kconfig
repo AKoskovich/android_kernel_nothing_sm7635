@@ -12,5 +12,9 @@ config ICS_HAPTIC_DRV
 	  To compile this driver as a module, choose M here: the
 	  module will be called aac_haptic_drv.
 
-
-
+config ICS_HAPTIC_DRV_RICHTAP
+	tristate "ICS_HAPTIC_DRV richtap driver"
+	depends on ICS_HAPTIC_DRV
+	help
+	  Say Y here if you want to enable aac_richtap device for
+	  the AAC/ICS RT6010 haptic controller.
