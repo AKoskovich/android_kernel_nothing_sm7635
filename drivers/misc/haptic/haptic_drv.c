@@ -1207,17 +1207,12 @@ exit:
 	return 0;
 }
 
-static int input_playback(struct input_dev *dev, int effect_id, int val)
+static void input_vibrator_work_handler(struct work_struct *work)
 {
-	struct ics_haptic_data *haptic_data = input_get_drvdata(dev);
-
-	if (val > 0)
-		haptic_data->state = 1;
-	if (val <= 0)
-		haptic_data->state = 0;
+	struct ics_haptic_data *haptic_data = container_of(work, struct ics_haptic_data, input_vibrator_work);
 
 	if (!haptic_data->state)
-		return 0;
+		return;
 
 	switch (haptic_data->activate_mode) {
 	case PLAY_MODE_RAM:
@@ -1230,6 +1225,18 @@ static int input_playback(struct input_dev *dev, int effect_id, int val)
 		schedule_work(&haptic_data->preset_work);
 		break;
 	}
+}
+
+static int input_playback(struct input_dev *dev, int effect_id, int val)
+{
+	struct ics_haptic_data *haptic_data = input_get_drvdata(dev);
+
+	if (val > 0)
+		haptic_data->state = 1;
+	if (val <= 0)
+		haptic_data->state = 0;
+
+	queue_work(haptic_data->input_work_queue, &haptic_data->input_vibrator_work);
 
 	return 0;
 }
@@ -1269,12 +1276,22 @@ static int input_framework_init(struct ics_haptic_data *haptic_data)
 	input_dev->ff->playback = input_playback;
 	input_dev->ff->erase = input_erase;
 	input_dev->ff->set_gain = input_set_gain;
+
 	ret = input_register_device(input_dev);
 	if (ret < 0) {
 		ics_err("register input device failed, rc=%d\n", ret);
 		input_ff_destroy(haptic_data->input_dev);
 		return ret;
 	}
+
+	INIT_WORK(&haptic_data->input_vibrator_work, input_vibrator_work_handler);
+	haptic_data->input_work_queue = alloc_workqueue("haptic_input_work_queue", WQ_UNBOUND, 1);
+	if (!haptic_data->input_work_queue) {
+		ics_err("failed to allocate input workqueue\n");
+		input_unregister_device(input_dev);
+		return -ENOMEM;
+	}
+
 	return ret;
 }
 #endif
@@ -1947,6 +1964,8 @@ static void ics_haptic_remove(struct i2c_client *client)
 	cancel_work_sync(&haptic_data->vibrator_work);
 	cancel_work_sync(&haptic_data->brake_guard_work);
 #ifdef ICS_INPUT_FRAMEWORK
+	cancel_work_sync(&haptic_data->input_vibrator_work);
+	destroy_workqueue(haptic_data->input_work_queue);
 	input_unregister_device(haptic_data->input_dev);
 #endif
 	hrtimer_cancel(&haptic_data->timer);
