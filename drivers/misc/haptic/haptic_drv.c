@@ -36,9 +36,12 @@
 
 #include "haptic_util.h"
 #include "haptic_drv.h"
-#include "richtap_drv.h"
 #include "sfdc_drv.h"
 #include "rt6010.h"
+
+#if IS_ENABLED(CONFIG_ICS_HAPTIC_DRV_RICHTAP)
+#include "richtap_drv.h"
+#endif
 
 #if IS_ENABLED(CONFIG_PRIZE_HARDWARE_INFO)
 #include "../hardware_info/hardware_info.h"
@@ -1005,7 +1008,7 @@ static irqreturn_t ics_haptic_irq_handler(int irq, void *data)
 		}
 	}
 
-#ifdef AAC_RICHTAP_SUPPORT
+#if IS_ENABLED(CONFIG_ICS_HAPTIC_DRV_RICHTAP)
 	ret = richtap_irq_handler(haptic_data);
 	if (ret >= 0)
 	{
@@ -1616,7 +1619,9 @@ static int32_t vibrator_init(struct ics_haptic_data *haptic_data)
 	INIT_WORK(&haptic_data->preset_work, preset_work_routine);
 	mutex_init(&haptic_data->lock);
 	mutex_init(&haptic_data->preset_lock);
+#if IS_ENABLED(CONFIG_ICS_HAPTIC_DRV_RICHTAP)
 	snprintf(haptic_info, sizeof(haptic_info), haptic_data->richtap_misc_name);
+#endif
 
 	return ret;
 }
@@ -1719,6 +1724,7 @@ static int32_t haptic_parse_dt(struct ics_haptic_data *haptic_data)
 		ics_info("provided device name is : %s\n", haptic_data->vib_name);
 	}
 
+#if IS_ENABLED(CONFIG_ICS_HAPTIC_DRV_RICHTAP)
 	if (of_property_read_string(dev_node, "richtap-name", &str_val))
 	{
 		ics_err("%s: can NOT find richtap name in DT!\n", __func__);
@@ -1729,6 +1735,7 @@ static int32_t haptic_parse_dt(struct ics_haptic_data *haptic_data)
 		memcpy(haptic_data->richtap_misc_name, str_val, strlen(str_val));
 		ics_info("provided richtap name is : %s\n", haptic_data->richtap_misc_name);
 	}
+#endif
 
 	return 0;
 }
@@ -1871,7 +1878,7 @@ static int ics_haptic_probe(struct i2c_client *client, const struct i2c_device_i
 		goto probe_err;
 	}
 
-#ifdef AAC_RICHTAP_SUPPORT
+#if IS_ENABLED(CONFIG_ICS_HAPTIC_DRV_RICHTAP)
 	ret = richtap_misc_register(haptic_data);
 	if (ret < 0)
 	{
@@ -1932,7 +1939,7 @@ static void ics_haptic_remove(struct i2c_client *client)
 {
 	struct ics_haptic_data *haptic_data = i2c_get_clientdata(client);
 
-#ifdef AAC_RICHTAP_SUPPORT
+#if IS_ENABLED(CONFIG_ICS_HAPTIC_DRV_RICHTAP)
 	richtap_misc_remove(haptic_data);
 #endif
 	sfdc_misc_remove(haptic_data);

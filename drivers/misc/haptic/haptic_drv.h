@@ -11,7 +11,6 @@
 #include <linux/leds.h>
 
 #define DEBUG
-#define AAC_RICHTAP_SUPPORT
 #define ICS_INPUT_FRAMEWORK
 
 #define ics_err(format, ...) \
@@ -177,7 +176,7 @@ struct ics_haptic_data
 	uint32_t config_size;
 	uint32_t nt_backup_f0;//Write the value of MMI calibration f0 in the upper layer
 	uint32_t nt_cmdline_f0;//record lk stage f0 exceeding threshold
-#ifdef AAC_RICHTAP_SUPPORT
+#if IS_ENABLED(CONFIG_ICS_HAPTIC_DRV_RICHTAP)
 	char richtap_misc_name[64];
 	void* richtap_data;
 	struct work_struct richtap_stream_work;
@@ -230,7 +229,7 @@ struct ics_haptic_func
 
 extern struct ics_haptic_func rt6010_func_list;
 
-#ifdef AAC_RICHTAP_SUPPORT
+#if IS_ENABLED(CONFIG_ICS_HAPTIC_DRV_RICHTAP)
 #define DEFAULT_RICHTAP_NAME	"aac_richtap"
 extern int32_t richtap_misc_register(struct ics_haptic_data *haptic_data);
 extern int32_t richtap_misc_remove(struct ics_haptic_data *haptic_data);
