@@ -1377,6 +1377,8 @@ skip_firmware_load:
 	haptic_data->func->set_play_mode(haptic_data, PLAY_MODE_STREAM);
 	haptic_data->func->play_go(haptic_data);
 
+	usleep_range(1000, 2000);
+
 	send_stream_data(haptic_data, chip_fifo_size);
 	mutex_unlock(&haptic_data->lock);
 }
