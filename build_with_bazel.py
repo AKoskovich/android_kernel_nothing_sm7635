@@ -215,7 +215,23 @@ class BazelBuilder:
         bazel_target_opts=None,
     ):
         """Execute a bazel command"""
+        if os.environ.get("BAZEL_BUILD_TRACER"):
+            pkg_path = os.environ.get("PATH_TO_FILER")
+            cmd = "python3 %s/init_bazel_tracing.py --working-dir %s" % (pkg_path, os.getcwd())
+            print ("Running %s" % (cmd))
+            cmd_proc = subprocess.Popen(cmd, shell=True)
+            self.process_list.append(cmd_proc)
+            cmd_proc.wait()
+            try:
+                if cmd_proc.returncode != 0:
+                    print("BAZEL_BUILD_TRACER: Failed to run %s" %(cmd))
+                    sys.exit(cmd_proc.returncode)
+            except Exception as e:
+                logging.error(e)
+                sys.exit(1)
+            print("BAZEL_BUILD_TRACER: Tracer has been initialized")
         cmdline = [self.bazel_bin, bazel_subcommand]
+        logging.info('targets = "%s"', [t.bazel_label for t in targets])
         if extra_options:
             cmdline.extend(extra_options)
         cmdline.extend([t.bazel_label for t in targets])

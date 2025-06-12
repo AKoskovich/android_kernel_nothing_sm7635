@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #include <dt-bindings/regulator/qcom,rpmh-regulator-levels.h>
 #include <dt-bindings/interconnect/qcom,icc.h>
@@ -49,7 +49,11 @@
 #define PCIE_VENDOR_ID_QCOM (0x17cb)
 
 #define PCIE20_PARF_DBI_BASE_ADDR (0x350)
+#define PCIE20_PARF_DBI_BASE_ADDR_HI (0x354)
 #define PCIE20_PARF_SLV_ADDR_SPACE_SIZE (0x358)
+#define PCIE20_PARF_SLV_ADDR_SPACE_SIZE_HI (0x35c)
+#define PCIE20_PARF_ATU_BASE_ADDR (0x634)
+#define PCIE20_PARF_ATU_BASE_ADDR_HI (0x638)
 
 #define PCIE_GEN3_PRESET_DEFAULT (0x55555555)
 #define PCIE_GEN3_SPCIE_CAP (0x0154)
@@ -1170,7 +1174,6 @@ struct msm_pcie_dev_t {
 	uint32_t ep_latency;
 	uint32_t switch_latency;
 	uint32_t wr_halt_size;
-	uint32_t slv_addr_space_size;
 	uint32_t phy_status_offset;
 	uint32_t phy_status_bit;
 	uint32_t phy_power_down_offset;
@@ -1203,6 +1206,7 @@ struct msm_pcie_dev_t {
 	bool enumerated;
 	struct work_struct handle_wake_work;
 	struct work_struct handle_sbr_work;
+	struct work_struct disable_resource;
 	struct mutex recovery_lock;
 	spinlock_t irq_lock;
 	struct mutex aspm_lock;
@@ -2156,8 +2160,6 @@ static void msm_pcie_show_status(struct msm_pcie_dev_t *dev)
 		dev->switch_latency);
 	PCIE_DBG_FS(dev, "wr_halt_size: 0x%x\n",
 		dev->wr_halt_size);
-	PCIE_DBG_FS(dev, "slv_addr_space_size: 0x%x\n",
-		dev->slv_addr_space_size);
 	PCIE_DBG_FS(dev, "PCIe: bdf_halt_dis is %d\n",
 		dev->pcie_bdf_halt_dis);
 	PCIE_DBG_FS(dev, "PCIe: halt_feature_dis is %d\n",
@@ -3819,9 +3821,6 @@ static int msm_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 			    int size, u32 *val)
 {
 	int ret = msm_pcie_oper_conf(bus, devfn, RD, where, size, val);
-
-	if ((bus->number == 0) && (where == PCI_CLASS_REVISION))
-		*val = (*val & 0xff) | (PCI_CLASS_BRIDGE_PCI << 16);
 
 	return ret;
 }
@@ -6102,6 +6101,50 @@ static void ntn3_de_emphasis_wa(struct pcie_i2c_ctrl *i2c_ctrl)
 }
 #endif
 
+/* RC do not represent the right class; set it to PCI_CLASS_BRIDGE_PCI_NORMAL */
+static void msm_pcie_set_root_port_class(struct msm_pcie_dev_t *dev)
+{
+	/* enable write access to RO register */
+	msm_pcie_write_mask(dev->dm_core + PCIE_GEN3_MISC_CONTROL, 0, BIT(0));
+
+	msm_pcie_write_mask(dev->dm_core + PCI_CLASS_REVISION,
+			0xFFFFFF << 8, PCI_CLASS_BRIDGE_PCI_NORMAL << 8);
+
+	/* disable write access to RO register */
+	msm_pcie_write_mask(dev->dm_core + PCIE_GEN3_MISC_CONTROL, BIT(0), 0);
+}
+
+static void msm_pcie_disable_dbi_mirroring(struct msm_pcie_dev_t *dev)
+{
+	struct resource *dbi_res = dev->res[MSM_PCIE_RES_DM_CORE].resource;
+	struct resource *atu_res = dev->res[MSM_PCIE_RES_IATU].resource;
+	u32 slv_addr_space_size = 0x80000000;
+
+	/* Configure DBI base address */
+	msm_pcie_write_reg(dev->parf, PCIE20_PARF_DBI_BASE_ADDR,
+				PCIE_LOWER_ADDR(dbi_res->start));
+
+	msm_pcie_write_reg(dev->parf, PCIE20_PARF_DBI_BASE_ADDR_HI,
+				PCIE_UPPER_ADDR(dbi_res->start));
+
+	/* Configure ATU base address */
+	msm_pcie_write_reg(dev->parf, PCIE20_PARF_ATU_BASE_ADDR,
+				PCIE_LOWER_ADDR(atu_res->start));
+
+	msm_pcie_write_reg(dev->parf, PCIE20_PARF_ATU_BASE_ADDR_HI,
+				PCIE_UPPER_ADDR(atu_res->start));
+
+	/*
+	 * Program PCIE20_PARF_SLV_ADDR_SPACE_SIZE by setting the highest
+	 * bit (only powers of 2 are valid) so that the DBI/ATU/BAR memory
+	 * doesn't get mirrored to the higher addresses
+	 */
+	msm_pcie_write_reg(dev->parf, PCIE20_PARF_SLV_ADDR_SPACE_SIZE, 0x0);
+
+	msm_pcie_write_reg(dev->parf, PCIE20_PARF_SLV_ADDR_SPACE_SIZE_HI,
+							slv_addr_space_size);
+}
+
 static int msm_pcie_enable_link(struct msm_pcie_dev_t *dev)
 {
 	int ret = 0;
@@ -6117,9 +6160,6 @@ static int msm_pcie_enable_link(struct msm_pcie_dev_t *dev)
 
 	/* enable PCIe clocks and resets */
 	msm_pcie_write_mask(dev->parf + PCIE20_PARF_PHY_CTRL, BIT(0), 0);
-
-	/* change DBI base address */
-	msm_pcie_write_reg(dev->parf, PCIE20_PARF_DBI_BASE_ADDR, 0);
 
 	msm_pcie_write_reg(dev->parf, PCIE20_PARF_SYS_CTRL, 0x365E);
 
@@ -6148,8 +6188,7 @@ static int msm_pcie_enable_link(struct msm_pcie_dev_t *dev)
 		dev->rc_idx,
 		readl_relaxed(dev->parf + PCIE20_PARF_INT_ALL_MASK));
 
-	msm_pcie_write_reg(dev->parf, PCIE20_PARF_SLV_ADDR_SPACE_SIZE,
-				dev->slv_addr_space_size);
+	msm_pcie_disable_dbi_mirroring(dev);
 
 	if (dev->pcie_halt_feature_dis) {
 		/* Disable PCIe Wr halt window */
@@ -6205,6 +6244,8 @@ static int msm_pcie_enable_link(struct msm_pcie_dev_t *dev)
 		if (ret)
 			return ret;
 	}
+
+	msm_pcie_set_root_port_class(dev);
 
 	/* Disable override for fal10_veto logic to de-assert Qactive signal */
 	msm_pcie_write_mask(dev->parf + PCIE20_PARF_CFG_BITS_3, BIT(0), 0);
@@ -6347,10 +6388,14 @@ static int msm_pcie_enable(struct msm_pcie_dev_t *dev)
 	msm_pcie_config_perst(dev, true);
 	usleep_range(dev->perst_delay_us_min, dev->perst_delay_us_max);
 
+	ret = msm_pcie_gpio_init(dev);
+	if (ret)
+		goto out;
+
 	/* enable power */
 	ret = msm_pcie_vreg_init(dev);
 	if (ret)
-		goto out;
+		goto vreg_fail;
 
 	/* enable core, phy gdsc */
 	ret = msm_pcie_gdsc_init(dev);
@@ -6433,6 +6478,9 @@ clk_fail:
 gdsc_fail:
 
 	msm_pcie_vreg_deinit(dev);
+vreg_fail:
+
+	msm_pcie_gpio_deinit(dev);
 out:
 	mutex_unlock(&dev->setup_lock);
 
@@ -6502,6 +6550,8 @@ static void msm_pcie_disable(struct msm_pcie_dev_t *dev)
 	if (dev->gpio[MSM_PCIE_GPIO_EP].num)
 		gpio_set_value(dev->gpio[MSM_PCIE_GPIO_EP].num,
 				1 - dev->gpio[MSM_PCIE_GPIO_EP].on);
+
+	msm_pcie_gpio_deinit(dev);
 
 	mutex_unlock(&dev->setup_lock);
 
@@ -7611,6 +7661,9 @@ static void msm_pcie_handle_linkdown(struct msm_pcie_dev_t *dev)
 		panic("User has chosen to panic on linkdown\n");
 
 	msm_pcie_notify_client(dev, MSM_PCIE_EVENT_LINKDOWN);
+
+	if (!msm_pcie_keep_resources_on)
+		queue_work(mpcie_wq, &dev->disable_resource);
 }
 
 static irqreturn_t handle_linkdown_irq(int irq, void *data)
@@ -7657,10 +7710,13 @@ static irqreturn_t handle_global_irq(int irq, void *data)
 		goto done;
 	}
 
-	/* Not handling the interrupts when we are in drv suspend */
+	/*
+	 * Not handling the interrupts when the resources are not
+	 * initialized or when we are in drv suspend.
+	 */
 	if (!dev->cfg_access) {
 		PCIE_DBG2(dev,
-			"PCIe: RC%d is currently in drv suspend.\n",
+			"PCIe: RC%d: Either in drv suspend or res init not done\n",
 			dev->rc_idx);
 		goto done;
 	}
@@ -8584,12 +8640,6 @@ static void msm_pcie_read_dt(struct msm_pcie_dev_t *pcie_dev, int rc_idx,
 	PCIE_DBG(pcie_dev, "Gdsc clk is %s votable during drv hand over.\n",
 			pcie_dev->gdsc_clk_drv_ss_nonvotable ? "not" : "");
 
-	pcie_dev->slv_addr_space_size = SZ_16M;
-	of_property_read_u32(of_node, "qcom,slv-addr-space-size",
-				&pcie_dev->slv_addr_space_size);
-	PCIE_DBG(pcie_dev, "RC%d: slv-addr-space-size: 0x%x.\n",
-		pcie_dev->rc_idx, pcie_dev->slv_addr_space_size);
-
 	of_property_read_u32(of_node, "qcom,num-parf-testbus-sel",
 				&pcie_dev->num_parf_testbus_sel);
 	PCIE_DBG(pcie_dev, "RC%d: num-parf-testbus-sel: 0x%x.\n",
@@ -8877,16 +8927,9 @@ static int msm_pcie_probe(struct platform_device *pdev)
 
 	msm_pcie_get_pinctrl(pcie_dev, pdev);
 
-	ret = msm_pcie_gpio_init(pcie_dev);
-	if (ret) {
-		msm_pcie_release_resources(pcie_dev);
-		goto decrease_rc_num;
-	}
-
 	ret = msm_pcie_irq_init(pcie_dev);
 	if (ret) {
 		msm_pcie_release_resources(pcie_dev);
-		msm_pcie_gpio_deinit(pcie_dev);
 		goto decrease_rc_num;
 	}
 
@@ -9833,9 +9876,7 @@ static int msm_pci_probe(struct pci_dev *pci_dev,
 }
 
 static struct pci_device_id msm_pci_device_id[] = {
-	{PCI_DEVICE(0x17cb, 0x0108)},
-	{PCI_DEVICE(0x17cb, 0x010b)},
-	{PCI_DEVICE(0x17cb, 0x010c)},
+	{PCI_DEVICE_CLASS(PCI_CLASS_BRIDGE_PCI_NORMAL, ~0x0)},
 	{0},
 };
 
@@ -10048,6 +10089,13 @@ static void msm_pcie_drv_enable_pc(struct work_struct *w)
 	msm_pcie_drv_send_rpmsg(pcie_dev, &pcie_dev->drv_info->drv_enable_pc);
 }
 
+static void msm_pcie_disable_resource(struct work_struct *work)
+{
+	struct msm_pcie_dev_t *pcie_dev = container_of(work, struct msm_pcie_dev_t,
+						disable_resource);
+	msm_pcie_disable(pcie_dev);
+}
+
 static void msm_pcie_drv_connect_worker(struct work_struct *work)
 {
 	struct pcie_drv_sta *pcie_drv = container_of(work, struct pcie_drv_sta,
@@ -10205,7 +10253,7 @@ static int __init pcie_init(void)
 				rc_name, i);
 		spin_lock_init(&msm_pcie_dev[i].cfg_lock);
 		spin_lock_init(&msm_pcie_dev[i].evt_reg_list_lock);
-		msm_pcie_dev[i].cfg_access = true;
+		msm_pcie_dev[i].cfg_access = false;
 		mutex_init(&msm_pcie_dev[i].enumerate_lock);
 		mutex_init(&msm_pcie_dev[i].setup_lock);
 		mutex_init(&msm_pcie_dev[i].recovery_lock);
@@ -10218,6 +10266,8 @@ static int __init pcie_init(void)
 				msm_pcie_drv_disable_pc);
 		INIT_WORK(&msm_pcie_dev[i].drv_enable_pc_work,
 				msm_pcie_drv_enable_pc);
+		INIT_WORK(&msm_pcie_dev[i].disable_resource,
+				msm_pcie_disable_resource);
 		INIT_LIST_HEAD(&msm_pcie_dev[i].enum_ep_list);
 		INIT_LIST_HEAD(&msm_pcie_dev[i].susp_ep_list);
 		INIT_LIST_HEAD(&msm_pcie_dev[i].event_reg_list);
@@ -10297,18 +10347,6 @@ static void __exit pcie_exit(void)
 
 subsys_initcall_sync(pcie_init);
 module_exit(pcie_exit);
-
-/* RC do not represent the right class; set it to PCI_CLASS_BRIDGE_PCI */
-static void msm_pcie_fixup_early(struct pci_dev *dev)
-{
-	struct msm_pcie_dev_t *pcie_dev = PCIE_BUS_PRIV_DATA(dev->bus);
-
-	PCIE_DBG(pcie_dev, "hdr_type %d\n", dev->hdr_type);
-	if (pci_is_root_bus(dev->bus))
-		dev->class = (dev->class & 0xff) | (PCI_CLASS_BRIDGE_PCI << 8);
-}
-DECLARE_PCI_FIXUP_EARLY(PCIE_VENDOR_ID_QCOM, PCI_ANY_ID,
-			msm_pcie_fixup_early);
 
 static void __msm_pcie_l1ss_timeout_disable(struct msm_pcie_dev_t *pcie_dev)
 {

@@ -21,6 +21,7 @@
 #include <linux/spi/spi.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/suspend.h>
+#include <linux/bootmarker_kernel.h>
 
 #define SPI_NUM_CHIPSELECT	(4)
 #define SPI_XFER_TIMEOUT_MS	(1000)
@@ -61,7 +62,7 @@
 #define CS_DEMUX_OUTPUT_SEL	(GENMASK(3, 0))
 
 /* SE_SPI_TX_TRANS_CFG register fields */
-#define CS_TOGGLE		(BIT(0))
+#define CS_TOGGLE		(BIT(1))
 
 /* SE_SPI_WORD_LEN register fields */
 #define WORD_LEN_MSK		(GENMASK(9, 0))
@@ -102,7 +103,6 @@
 
 /* SPI sampling registers */
 #define SE_GENI_CGC_CTRL	(0x28)
-#define SE_GENI_CFG_SEQ_START	(0x84)
 #define SE_GENI_CFG_REG108	(0x2B0)
 #define SE_GENI_CFG_REG109	(0x2B4)
 #define CPOL_CTRL_SHFT	1
@@ -128,6 +128,8 @@ if (dev) \
 
 #define CREATE_TRACE_POINTS
 #include "spi-qup-trace.h"
+
+#define BOOT_MARKER_SIZE	50
 
 /* FTRACE Logging */
 void spi_trace_log(struct device *dev, const char *fmt, ...)
@@ -2474,6 +2476,9 @@ static int spi_geni_probe(struct platform_device *pdev)
 	bool slave_en;
 	struct device *dev = &pdev->dev;
 	struct geni_se *spi_rsc;
+	#if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
+	char boot_marker[BOOT_MARKER_SIZE];
+	#endif
 
 	slave_en  = of_property_read_bool(pdev->dev.of_node,
 			 "qcom,slv-ctrl");
@@ -2488,7 +2493,13 @@ static int spi_geni_probe(struct platform_device *pdev)
 	if (slave_en)
 		spi->slave_abort = spi_slv_abort;
 
-	pr_info("boot_kpi: M - DRIVER GENI_SPI Init\n");
+	#if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
+		snprintf(boot_marker, sizeof(boot_marker),
+				"M - DRIVER GENI_SPI Init");
+		bootmarker_place_marker(boot_marker);
+	#else
+		dev_dbg(&pdev->dev, "M - DRIVER GENI_SPI Init\n");
+	#endif
 
 	platform_set_drvdata(pdev, spi);
 	geni_mas = spi_master_get_devdata(spi);
@@ -2710,7 +2721,13 @@ static int spi_geni_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "%s: completed %d\n", __func__, ret);
 
-	pr_info("boot_kpi: M - DRIVER GENI_SPI_%d Ready\n", spi->bus_num);
+	#if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
+		snprintf(boot_marker, sizeof(boot_marker),
+				"M - DRIVER GENI_SPI_%d Ready", spi->bus_num);
+		bootmarker_place_marker(boot_marker);
+	#else
+		dev_dbg(&pdev->dev, "M - DRIVER GENI_SPI_%d Ready\n", spi->bus_num);
+	#endif
 
 	return ret;
 spi_geni_probe_err:
@@ -3109,6 +3126,60 @@ static int spi_geni_suspend(struct device *dev)
 	mutex_unlock(&geni_mas->spi_ssr.ssr_lock);
 	return ret;
 }
+
+static int spi_geni_hib_suspend(struct device *dev)
+{
+	int ret = 0;
+	struct spi_master *spi = get_spi_master(dev);
+	struct spi_geni_master *geni_mas = spi_master_get_devdata(spi);
+	unsigned long long start_time;
+
+	start_time = geni_capture_start_time(&geni_mas->spi_rsc, geni_mas->ipc_log_kpi, __func__,
+					     geni_mas->spi_kpi);
+
+	if (geni_mas->is_xfer_in_progress) {
+		if (!pm_runtime_status_suspended(dev)) {
+			SPI_LOG_ERR(geni_mas->ipc, true, dev,
+				    ":%s: runtime PM is active\n", __func__);
+			ret = -EBUSY;
+			return ret;
+		}
+		return ret;
+	}
+
+	/* for GSI mode, GSI channels re-config required for Hibernation */
+	if (geni_mas->gsi_mode) {
+		geni_mas->is_deep_sleep = true;
+		SPI_LOG_ERR(geni_mas->ipc, true, dev,
+			    "%s: GSI channels re-config required for hibernation", __func__);
+	}
+
+	if (!pm_runtime_status_suspended(dev)) {
+		struct spi_master *spi = get_spi_master(dev);
+		struct spi_geni_master *geni_mas = spi_master_get_devdata(spi);
+
+		if (list_empty(&spi->queue) && !spi->cur_msg) {
+			SPI_LOG_ERR(geni_mas->ipc, true, dev,
+				    "%s: Force suspend", __func__);
+			ret = spi_geni_runtime_suspend(dev);
+			if (ret) {
+				SPI_LOG_ERR(geni_mas->ipc, true, dev,
+					    "Force suspend Failed:%d", ret);
+			} else {
+				pm_runtime_disable(dev);
+				pm_runtime_set_suspended(dev);
+				pm_runtime_enable(dev);
+			}
+		} else {
+			ret = -EBUSY;
+		}
+	}
+	geni_se_ssc_clk_enable(&geni_mas->rsc, false);
+	geni_capture_stop_time(&geni_mas->spi_rsc, geni_mas->ipc_log_kpi, __func__,
+			       geni_mas->spi_kpi, start_time, 0, 0);
+
+	return ret;
+}
 #else
 static int spi_geni_runtime_suspend(struct device *dev)
 {
@@ -3126,6 +3197,11 @@ static int spi_geni_resume(struct device *dev)
 }
 
 static int spi_geni_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int spi_geni_hib_suspend(struct device *dev)
 {
 	return 0;
 }
@@ -3200,7 +3276,12 @@ static void ssr_spi_force_resume(struct device *dev)
 static const struct dev_pm_ops spi_geni_pm_ops = {
 	SET_RUNTIME_PM_OPS(spi_geni_runtime_suspend,
 					spi_geni_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(spi_geni_suspend, spi_geni_resume)
+	.suspend	= spi_geni_suspend,
+	.resume		= spi_geni_resume,
+	.freeze		= spi_geni_hib_suspend,
+	.thaw		= spi_geni_resume,
+	.poweroff	= spi_geni_suspend,
+	.restore	= spi_geni_resume,
 };
 
 static const struct of_device_id spi_geni_dt_match[] = {

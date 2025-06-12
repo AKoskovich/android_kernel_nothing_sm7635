@@ -2055,17 +2055,9 @@ static int virtcons_probe(struct virtio_device *vdev)
 		multiport = true;
 	}
 
-	err = init_vqs(portdev);
-	if (err < 0) {
-		dev_err(&vdev->dev, "Error %d initializing vqs\n", err);
-		goto free_chrdev;
-	}
-
 	spin_lock_init(&portdev->ports_lock);
 	INIT_LIST_HEAD(&portdev->ports);
 	INIT_LIST_HEAD(&portdev->list);
-
-	virtio_device_ready(portdev->vdev);
 
 	INIT_WORK(&portdev->config_work, &config_work_handler);
 	INIT_WORK(&portdev->control_work, &control_work_handler);
@@ -2073,7 +2065,17 @@ static int virtcons_probe(struct virtio_device *vdev)
 	if (multiport) {
 		spin_lock_init(&portdev->c_ivq_lock);
 		spin_lock_init(&portdev->c_ovq_lock);
+	}
 
+	err = init_vqs(portdev);
+	if (err < 0) {
+		dev_err(&vdev->dev, "Error %d initializing vqs\n", err);
+		goto free_chrdev;
+	}
+
+	virtio_device_ready(portdev->vdev);
+
+	if (multiport) {
 		err = fill_queue(portdev->c_ivq, &portdev->c_ivq_lock);
 		if (err < 0) {
 			dev_err(&vdev->dev,
@@ -2151,7 +2153,7 @@ static const unsigned int rproc_serial_features[] = {
 static int virtcons_freeze(struct virtio_device *vdev)
 {
 	struct ports_device *portdev;
-	struct port *port;
+	struct port *port, *port2;
 
 	portdev = vdev->priv;
 
@@ -2178,6 +2180,10 @@ static int virtcons_freeze(struct virtio_device *vdev)
 		port->host_connected = false;
 		remove_port_data(port);
 	}
+
+	list_for_each_entry_safe(port, port2, &portdev->ports, list)
+		unplug_port(port);
+
 	remove_vqs(portdev);
 
 	return 0;
@@ -2196,6 +2202,8 @@ static int virtcons_restore(struct virtio_device *vdev)
 		return ret;
 
 	virtio_device_ready(portdev->vdev);
+
+	add_port(portdev, 0);
 
 	if (use_multiport(portdev))
 		fill_queue(portdev->c_ivq, &portdev->c_ivq_lock);

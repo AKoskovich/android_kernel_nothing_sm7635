@@ -1,6 +1,6 @@
-load(":target_variants.bzl", "la_variants")
-load(":msm_kernel_la.bzl", "define_msm_la")
 load(":image_opts.bzl", "boot_image_opts")
+load(":msm_kernel_la.bzl", "define_msm_la")
+load(":target_variants.bzl", "la_variants")
 
 target_name = "autogvm"
 
@@ -37,10 +37,10 @@ def define_autogvm():
         "drivers/irqchip/qcom-pdc.ko",
         "drivers/mailbox/msm_qmp.ko",
         "drivers/mailbox/qcom-ipcc.ko",
-        "drivers/md/dm-bow.ko",
         "drivers/media/platform/msm/npu/virtio_npu.ko",
         "drivers/mfd/qcom-spmi-pmic.ko",
         "drivers/misc/bootmarker_proxy.ko",
+        "drivers/misc/open-dice.ko",
         "drivers/misc/qseecom_proxy.ko",
         "drivers/mmc/host/cqhci.ko",
         "drivers/mmc/host/sdhci-msm.ko",
@@ -59,6 +59,12 @@ def define_autogvm():
         "drivers/net/phy/marvell.ko",
         "drivers/net/virtio_net.ko",
         "drivers/pci/controller/pci-msm-drv.ko",
+        "drivers/phy/qualcomm/phy-qcom-qmp-combo.ko",
+        "drivers/phy/qualcomm/phy-qcom-qmp-pcie.ko",
+        "drivers/phy/qualcomm/phy-qcom-qmp-pcie-msm8996.ko",
+        "drivers/phy/qualcomm/phy-qcom-qmp-ufs.ko",
+        "drivers/phy/qualcomm/phy-qcom-qmp-usb.ko",
+        "drivers/phy/qualcomm/phy-qcom-snps-femto-v2.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-lahaina.ko",

@@ -60,6 +60,7 @@ struct stmmac_tx_info {
 #define STAR_BOARD 2
 #define PHY_1G 1
 #define PHY_25G 2
+#define SWITCH 3
 
 /* Frequently used values are kept adjacent for cache effect */
 struct stmmac_tx_queue {
@@ -83,6 +84,7 @@ struct stmmac_tx_queue {
 	dma_addr_t dma_tx_phy;
 	dma_addr_t tx_tail_addr;
 	u32 mss;
+	u32 pid;
 };
 
 struct stmmac_rx_buffer {

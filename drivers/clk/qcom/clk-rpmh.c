@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk-provider.h>
@@ -16,6 +16,9 @@
 #include <soc/qcom/tcs.h>
 
 #include <dt-bindings/clock/qcom,rpmh.h>
+
+#include "clk-debug.h"
+#include "common.h"
 
 #define CLK_RPMH_ARC_EN_OFFSET		0
 #define CLK_RPMH_VRM_EN_OFFSET		4
@@ -307,8 +310,7 @@ static int clk_rpmh_bcm_send_cmd(struct clk_rpmh *c, bool enable)
 		cmd_state = 0;
 	}
 
-	if (cmd_state > BCM_TCS_CMD_VOTE_MASK)
-		cmd_state = BCM_TCS_CMD_VOTE_MASK;
+	cmd_state = min(cmd_state, BCM_TCS_CMD_VOTE_MASK);
 
 	if (c->last_sent_aggr_state != cmd_state) {
 		cmd.addr = c->res_addr;
@@ -925,6 +927,31 @@ static const struct clk_rpmh_desc clk_rpmh_volcano = {
 	.num_clks = ARRAY_SIZE(volcano_rpmh_clocks),
 };
 
+DEFINE_CLK_RPMH_ARC(seraph, xo_pad, xo_pad_ao, "xo.lvl", 0x03, 1);
+DEFINE_CLK_RPMH_FIXED(seraph, bi_tcxo, bi_tcxo_ao, xo_pad, xo_pad_ao, 2);
+DEFINE_CLK_RPMH_VRM_OPT(seraph, c1a_e0, c1a_e0_ao, "C1A_E0", 2);
+DEFINE_CLK_RPMH_VRM_OPT(seraph, c6a_e0, c6a_e0_ao, "C6A_E0", 1);
+DEFINE_CLK_RPMH_VRM_OPT(seraph, c7a_e0, c7a_e0_ao, "C7A_E0", 2);
+
+static struct clk_hw *seraph_rpmh_clocks[] = {
+	[RPMH_CXO_PAD_CLK]	= &seraph_xo_pad.hw,
+	[RPMH_CXO_PAD_CLK_A]	= &seraph_xo_pad_ao.hw,
+	[RPMH_CXO_CLK]		= &seraph_bi_tcxo.hw,
+	[RPMH_CXO_CLK_A]	= &seraph_bi_tcxo_ao.hw,
+	[RPMH_RF_CLK1]		= &seraph_c1a_e0.hw,
+	[RPMH_RF_CLK1_A]	= &seraph_c1a_e0_ao.hw,
+	[RPMH_LN_BB_CLK1]	= &seraph_c6a_e0.hw,
+	[RPMH_LN_BB_CLK1_A]	= &seraph_c6a_e0_ao.hw,
+	[RPMH_DIV_CLK1]		= &seraph_c7a_e0.hw,
+	[RPMH_DIV_CLK1_A]	= &seraph_c7a_e0_ao.hw,
+	[RPMH_IPA_CLK]		= &sdm845_ipa.hw,
+};
+
+static const struct clk_rpmh_desc clk_rpmh_seraph = {
+	.clks = seraph_rpmh_clocks,
+	.num_clks = ARRAY_SIZE(seraph_rpmh_clocks),
+};
+
 static int clk_rpmh_probe(struct platform_device *pdev)
 {
 	struct clk_hw **hw_clks;
@@ -984,6 +1011,11 @@ static int clk_rpmh_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "failed to register %s\n", name);
 			return ret;
 		}
+
+		ret = clk_hw_debug_register(&pdev->dev, hw_clks[i]);
+		if (ret)
+			dev_warn(&pdev->dev, "Failed to add %s to debug list\n",
+						qcom_clk_hw_get_name(hw_clks[i]));
 	}
 
 	/* typecast to silence compiler warning */
@@ -1022,6 +1054,7 @@ static const struct of_device_id clk_rpmh_match_table[] = {
 	{ .compatible = "qcom,volcano-rpmh-clk", .data = &clk_rpmh_volcano},
 	{ .compatible = "qcom,anorak-rpmh-clk", .data = &clk_rpmh_anorak},
 	{ .compatible = "qcom,neo-rpmh-clk", .data = &clk_rpmh_neo},
+	{ .compatible = "qcom,seraph-rpmh-clk", .data = &clk_rpmh_seraph},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, clk_rpmh_match_table);

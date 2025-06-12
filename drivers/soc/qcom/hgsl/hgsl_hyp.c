@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "hgsl.h"
@@ -513,6 +513,7 @@ static int hgsl_rpc_create_channel(
 	struct hgsl_hab_channel_t *hab_channel
 		= (struct hgsl_hab_channel_t *)hgsl_zalloc(
 					sizeof(struct hgsl_hab_channel_t));
+	bool first_handshake = false;
 
 	if (hab_channel == NULL) {
 		LOGE("Failed to allocate hab_channel");
@@ -545,10 +546,13 @@ static int hgsl_rpc_create_channel(
 		}
 		hab_channel->socket = socket;
 		ret = rpc_handshake(priv, hab_channel);
-		if (ret)
-			LOGE("rpc_handshake failed %d", ret);
 		gsl_hab_close(socket);
 		hab_channel->socket = HAB_INVALID_HANDLE;
+		if (unlikely(ret)) {
+			LOGE("rpc_handshake failed %d", ret);
+			goto out;
+		}
+		first_handshake = true;
 	}
 
 	ret = hgsl_rpc_connect(priv, &socket);
@@ -558,18 +562,27 @@ static int hgsl_rpc_create_channel(
 	}
 	hab_channel->socket = socket;
 	ret = rpc_sub_handshake(priv, hab_channel);
-	if (ret) {
+	if (unlikely(ret)) {
 		LOGE("sub handshake failed %d", ret);
 		gsl_hab_close(socket);
 		hab_channel->socket = HAB_INVALID_HANDLE;
 	}
 
 out:
-	if (ret) {
+	if (unlikely(ret)) {
 		LOGE("Failed to create channel %d exiting", ret);
 		if (hab_channel != NULL) {
 			hgsl_hyp_close_channel(hab_channel);
 			hab_channel = NULL;
+		}
+		if (first_handshake) {
+			/* The sub handshake may failed due to the overhead
+			 * of hab transition between GVM and PVM, we shall
+			 * reset conn_id and overwrite errno to EAGAIN, let
+			 * userspace retry to create hab channel again.
+			 */
+			priv->conn_id = 0;
+			ret = -EAGAIN;
 		}
 	} else {
 		*channel = hab_channel;
@@ -2321,7 +2334,7 @@ out:
 
 int hgsl_hyp_query_dbcq(struct hgsl_hab_channel_t *hab_channel, uint32_t devhandle,
 	uint32_t ctxthandle, uint32_t length, uint32_t *db_signal, uint32_t *queue_gmuaddr,
-	uint32_t *irq_idx)
+	uint32_t *irq_bit_idx)
 {
 	struct query_dbcq_params_t rpc_params = { 0 };
 	struct gsl_hab_payload *send_buf = NULL;
@@ -2386,7 +2399,7 @@ int hgsl_hyp_query_dbcq(struct hgsl_hab_channel_t *hab_channel, uint32_t devhand
 		ret = -EINVAL;
 		goto out;
 	}
-	ret = gsl_rpc_read_uint32_l(recv_buf, irq_idx);
+	ret = gsl_rpc_read_uint32_l(recv_buf, irq_bit_idx);
 	if (ret) {
 		LOGE("failed to read irq_idx, %d", ret);
 		ret = -EINVAL;

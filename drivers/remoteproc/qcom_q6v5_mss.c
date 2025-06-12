@@ -1313,7 +1313,7 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 			memcpy(ptr, fw->data + phdr->p_offset, phdr->p_filesz);
 		} else if (phdr->p_filesz) {
 			/* Replace "xxx.xxx" with "xxx.bxx" */
-			sprintf(fw_name + fw_name_len - 3, "b%02d", i);
+			snprintf(fw_name + fw_name_len - 3, 4, "b%02d", i);
 			ret = request_firmware_into_buf(&seg_fw, fw_name, qproc->dev,
 							ptr, phdr->p_filesz);
 			if (ret) {
@@ -1888,7 +1888,7 @@ static int q6v5_probe(struct platform_device *pdev)
 	qproc->has_mba_logs = desc->has_mba_logs;
 
 	ret = qcom_q6v5_init(&qproc->q6v5, pdev, rproc, MPSS_CRASH_REASON_SMEM,
-			     qcom_msa_handover);
+			false, qcom_msa_handover);
 	if (ret)
 		goto detach_proxy_pds;
 

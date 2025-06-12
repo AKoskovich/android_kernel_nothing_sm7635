@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2009-2017, 2021 The Linux Foundation. All rights reserved.
  * Copyright (c) 2017-2019, Linaro Ltd.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/debugfs.h>
@@ -262,6 +262,8 @@ static const char *const pmic_models[] = {
 	[52] = "PMR735B",
 	[58] = "PM8450",
 	[65] = "PM8010",
+	[78] = "PMM8650",
+	[79] = "PMM8650",
 };
 #endif /* CONFIG_DEBUG_FS */
 
@@ -579,6 +581,7 @@ static const struct soc_id soc_id[] = {
 	{ 629, "NIOBE" },
 	{ 652, "NIOBE" },
 	{ 672, "SERAPH" },
+	{ 673, "SERAPHP" },
 	{ 577, "PINEAPPLEP" },
 	{ 578, "BLAIR-LITE" },
 	{ 605, "SA_MONACOAU_ADAS" },
@@ -594,8 +597,14 @@ static const struct soc_id soc_id[] = {
 	{ 642, "CLIFFSP" },
 	{ 643, "CLIFFS7P" },
 	{ 682, "SG_PINEAPPLE" },
+	{ 696, "PINEAPPLEQ" },
+	{ 700, "SG_CLIFFS7P" },
 	{ 549, "ANORAK" },
 	{ 554, "NEO-LA" },
+	{ 645, "QCM_PINEAPPLE" },
+	{ 646, "QCS_PINEAPPLE" },
+	{ 702, "QCS8625_PINEAPPLE" },
+	{ 712, "VOLCANOP" },
 };
 
 static struct attribute *msm_custom_socinfo_attrs[MAX_SOCINFO_ATTRS];
