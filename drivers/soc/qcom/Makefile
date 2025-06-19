@@ -123,3 +123,5 @@ obj-$(CONFIG_QCOM_QFPROM_SYS) += qfprom-sys.o
 obj-$(CONFIG_QCOM_S2D_VENDOR_HOOK) += qcom_hib.o
 obj-$(CONFIG_QCOM_SECURE_HIBERNATION) += qcom_secure_hibernation.o
 obj-$(CONFIG_MSM_BAM_DMUX) += bam_dmux.o
+obj-$(CONFIG_NT_DISPLAY_NOTIFIER) += nt_display_notifier.o
+obj-$(CONFIG_NT_TOUCH_NOTIFIER) += touchpanel_event_notify.o
