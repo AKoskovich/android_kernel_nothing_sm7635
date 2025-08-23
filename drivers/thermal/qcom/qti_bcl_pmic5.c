@@ -426,6 +426,13 @@ static int bcl_read_ibat(struct thermal_zone_device *tz, int *adc_value)
 			convert_adc_to_ibat_val(bat_data->dev, adc_value,
 				BCL_IBAT_SCALING_UA *
 					bat_data->dev->ibat_ext_range_factor);
+
+		if (val & 0x8000) {
+			*adc_value = -((~(val) & 0xFFFF) + 1);
+		} else {
+			*adc_value = (((val) & 0xFFFF) + 1);
+		}
+
 		bat_data->last_val = *adc_value;
 	}
 	pr_debug("ibat:%d mA ADC:0x%02x\n", bat_data->last_val, val);

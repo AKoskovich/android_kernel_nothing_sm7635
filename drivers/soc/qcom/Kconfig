@@ -713,6 +713,18 @@ config QCOM_ADSP_SLEEPMON
 	   detects and logs sleep violations from ADSP subsystem. The driver
 	   uses master stats from ADSP subsystem stored in SMEM.
 
+config NOTHING_POWERINFO_RPMH
+	bool "RPMH move to sysfs"
+	default n
+	help
+		This option move d/qcom_sleep_stats to sys/module/soc_sleep_sleep
+
+config NOTHING_POWERINFO_STANDBY
+	bool "powerinfo standby debug"
+	default n
+	help
+		This option open powerinfo standby debug
+
 config USB_BAM
         tristate "USB BAM Driver"
 	depends on SPS && USB_GADGET
@@ -1080,6 +1092,13 @@ config QCOM_PANEL_EVENT_NOTIFIER
 	  can use these notifications for power saving or align its operations
 	  with display panel power state.
 
+config NT_DISPLAY_NOTIFIER
+	tristate "hbm&ui event notifier"
+	help
+	  Enabling this option adds nt display hbm&ui event notifier driver.
+	  This driver is responsible for notifying clients, such as fingerprint,
+	  interested in display hbm&ui status to decide capture image or not.
+
 config QCOM_SPMI_PMIC_ERR_DBG
 	tristate "Qualcomm SPMI protocol error IRQ handler"
 	depends on QCOM_SCM
@@ -1261,5 +1280,11 @@ config QTI_HW_KEY_MANAGER_V1
 	 and access key manager hardware block. This is used to interface with
 	 HWKM hardware to perform key operations from the kernel which will
 	 be used for storage encryption.
+
+config NT_TOUCH_NOTIFIER
+	tristate "TP fod event notifier"
+	help
+	  Enabling this option adds nt TP fod event notifier driver.
+	  This driver is responsible for notifying clients, such as fingerprint.
 
 endmenu
