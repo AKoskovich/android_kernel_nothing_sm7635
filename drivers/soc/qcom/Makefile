@@ -117,5 +117,7 @@ obj-$(CONFIG_QTI_PMIC_LPM)      += qti-pmic-lpm.o
 obj-$(CONFIG_QTI_DMOF_SCMI) += qti_dmof_scmi.o
 obj-$(CONFIG_QCOM_PMIC_ECID) += qcom-pmic-ecid.o
 obj-$(CONFIG_QCOM_CX_IPEAK) += cx_ipeak.o
+obj-$(CONFIG_MSM_SYSTEM_HEALTH_MONITOR) += health_monitor.o
+health_monitor-y := system_health_monitor_v01.o system_health_monitor.o
 obj-$(CONFIG_NT_DISPLAY_NOTIFIER) += nt_display_notifier.o
 obj-$(CONFIG_NT_TOUCH_NOTIFIER) += touchpanel_event_notify.o

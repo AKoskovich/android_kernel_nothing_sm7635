@@ -1281,6 +1281,16 @@ config QTI_HW_KEY_MANAGER_V1
 	 HWKM hardware to perform key operations from the kernel which will
 	 be used for storage encryption.
 
+config MSM_SYSTEM_HEALTH_MONITOR
+	tristate "System Health Monitor"
+	help
+	  System Health Monitor (SHM) passively monitors the health of the
+	  peripherals connected to the application processor. Software
+	  components in the application processor that experience
+	  communication failure can request the SHM to perform a system-wide
+	  health check. If any failures are detected during the health-check,
+	  then a subsystem restart will be triggered for the failed subsystem.
+
 config NT_TOUCH_NOTIFIER
 	tristate "TP fod event notifier"
 	help
