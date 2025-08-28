@@ -600,7 +600,7 @@ static int ufs_qcom_ice_init(struct ufs_qcom_host *host)
 	struct device *dev = hba->dev;
 	struct qcom_ice *ice;
 
-	ice = of_qcom_ice_get(dev);
+	ice = devm_of_qcom_ice_get(dev);
 	if (ice == ERR_PTR(-EOPNOTSUPP)) {
 		dev_warn(dev, "Disabling inline encryption support\n");
 		ice = NULL;
@@ -2417,27 +2417,6 @@ static int ufs_qcom_quirk_host_pa_saveconfigtime(struct ufs_hba *hba)
 			    (pa_vs_config_reg1 | (1 << 12)));
 }
 
-static void ufs_qcom_override_pa_h8time(struct ufs_hba *hba)
-{
-	int ret;
-	u32 pa_h8time = 0;
-
-	ret = ufshcd_dme_get(hba, UIC_ARG_MIB(PA_HIBERN8TIME),
-				&pa_h8time);
-	if (ret) {
-		dev_err(hba->dev, "Failed getting PA_HIBERN8TIME: %d\n", ret);
-		return;
-	}
-
-
-	/* 1 implies 100 us */
-	ret = ufshcd_dme_set(hba, UIC_ARG_MIB(PA_HIBERN8TIME),
-				pa_h8time + 1);
-	if (ret)
-		dev_err(hba->dev, "Failed updating PA_HIBERN8TIME: %d\n", ret);
-
-}
-
 static inline bool
 ufshcd_is_valid_pm_lvl(enum ufs_pm_level lvl)
 {
@@ -2493,9 +2472,6 @@ static int ufs_qcom_apply_dev_quirks(struct ufs_hba *hba)
 
 	if (hba->dev_info.wmanufacturerid == UFS_VENDOR_WDC)
 		hba->dev_quirks |= UFS_DEVICE_QUIRK_HOST_PA_TACTIVATE;
-
-	if (hba->dev_quirks & UFS_DEVICE_QUIRK_PA_HIBER8TIME)
-		ufs_qcom_override_pa_h8time(hba);
 
 	if (hba->dev_quirks & UFS_DEVICE_QUIRK_PA_TX_HSG1_SYNC_LENGTH)
 		ufs_qcom_override_pa_tx_hsg1_sync_len(hba);
